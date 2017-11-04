@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go
 func main() {
 	r := chi.NewRouter()
 
@@ -59,6 +60,22 @@ func main() {
 			r.Put("/", updateTemplate)    // PUT /templates/123
 			r.Delete("/", deleteTemplate) // DELETE /templates/123
 		})
+	})
+
+	r.Route("/templateItems", func(r chi.Router) {
+		r.Get("/", listTemplateItems)
+		r.Post("/", createTemplateItem)       // POST /templateItems
+		r.Get("/search", searchTemplateItems) // GET /templateItems/search
+
+		r.Route("/{templateItemID}", func(r chi.Router) {
+			r.Use(TemplateItemCtx)            // Load the *TemplateItem on the request context
+			r.Get("/", getTemplateItem)       // GET /templateItems/123
+			r.Put("/", updateTemplateItem)    // PUT /templateItems/123
+			r.Delete("/", deleteTemplateItem) // DELETE /templateItems/123
+		})
+
+		// GET /templateItems/whats-up
+		r.With(TemplateItemCtx).Get("/{articleSlug:[a-z-]+}", getTemplateItem)
 	})
 
 	http.ListenAndServe(":3000", r)
