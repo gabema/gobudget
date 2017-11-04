@@ -28,8 +28,8 @@ func BucketItemCtx(next http.Handler) http.Handler {
 		var bucketItem *BucketItem
 		var err error
 
-		if articleID := chi.URLParam(r, "bucketItemID"); articleID != "" {
-			bucketItem, err = dbGetBucketItem(articleID)
+		if bucketItemID := chi.URLParam(r, "bucketItemID"); bucketItemID != "" {
+			bucketItem, err = dbGetBucketItem(bucketItemID)
 		} else if articleSlug := chi.URLParam(r, "articleSlug"); articleSlug != "" {
 			bucketItem, err = dbGetBucketItemBySlug(articleSlug)
 		} else {
@@ -59,11 +59,11 @@ func createBucketItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	article := data.BucketItem
-	dbNewBucketItem(article)
+	bucketItem := data.BucketItem
+	dbNewBucketItem(bucketItem)
 
 	render.Status(r, http.StatusCreated)
-	render.Render(w, r, newBucketItemResponse(article))
+	render.Render(w, r, newBucketItemResponse(bucketItem))
 }
 
 // getBucketItem returns the specific BucketItem. You'll notice it just
@@ -71,12 +71,12 @@ func createBucketItem(w http.ResponseWriter, r *http.Request) {
 // if we made it this far, the BucketItem must be on the context. In case
 // its not due to a bug, then it will panic, and our Recoverer will save us.
 func getBucketItem(w http.ResponseWriter, r *http.Request) {
-	// Assume if we've reach this far, we can access the article
+	// Assume if we've reach this far, we can access the bucketItem
 	// context because this handler is a child of the BucketItemCtx
 	// middleware. The worst case, the recoverer middleware will save us.
-	article := r.Context().Value("bucketItem").(*BucketItem)
+	bucketItem := r.Context().Value("bucketItem").(*BucketItem)
 
-	if err := render.Render(w, r, newBucketItemResponse(article)); err != nil {
+	if err := render.Render(w, r, newBucketItemResponse(bucketItem)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
 	}
@@ -84,34 +84,34 @@ func getBucketItem(w http.ResponseWriter, r *http.Request) {
 
 // updateBucketItem updates an existing BucketItem in our persistent store.
 func updateBucketItem(w http.ResponseWriter, r *http.Request) {
-	article := r.Context().Value("bucketItem").(*BucketItem)
+	bucketItem := r.Context().Value("bucketItem").(*BucketItem)
 
-	data := &BucketItemRequest{BucketItem: article}
+	data := &BucketItemRequest{BucketItem: bucketItem}
 	if err := render.Bind(r, data); err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
-	article = data.BucketItem
-	dbUpdateBucketItem(article.ID, article)
+	bucketItem = data.BucketItem
+	dbUpdateBucketItem(bucketItem.ID, bucketItem)
 
-	render.Render(w, r, newBucketItemResponse(article))
+	render.Render(w, r, newBucketItemResponse(bucketItem))
 }
 
 func deleteBucketItem(w http.ResponseWriter, r *http.Request) {
 	var err error
 
-	// Assume if we've reach this far, we can access the article
+	// Assume if we've reach this far, we can access the bucketItem
 	// context because this handler is a child of the BucketItemCtx
 	// middleware. The worst case, the recoverer middleware will save us.
-	article := r.Context().Value("bucketItem").(*BucketItem)
+	bucketItem := r.Context().Value("bucketItem").(*BucketItem)
 
-	article, err = dbRemoveBucketItem(article.ID)
+	bucketItem, err = dbRemoveBucketItem(bucketItem.ID)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 
-	render.Render(w, r, newBucketItemResponse(article))
+	render.Render(w, r, newBucketItemResponse(bucketItem))
 }
 
 // BucketItem data model. I suggest looking at https://upper.io for an easy
@@ -165,8 +165,8 @@ type BucketItemResponse struct {
 	Elapsed int64 `json:"elapsed"`
 }
 
-func newBucketItemResponse(article *BucketItem) *BucketItemResponse {
-	return &BucketItemResponse{BucketItem: article}
+func newBucketItemResponse(bucketItem *BucketItem) *BucketItemResponse {
+	return &BucketItemResponse{BucketItem: bucketItem}
 }
 
 func (rd *BucketItemResponse) Render(w http.ResponseWriter, r *http.Request) error {
@@ -179,8 +179,8 @@ type BucketItemListResponse []*BucketItemResponse
 
 func newBucketItemListResponse(bucketItems []*BucketItem) []render.Renderer {
 	list := []render.Renderer{}
-	for _, article := range bucketItems {
-		list = append(list, newBucketItemResponse(article))
+	for _, bucketItem := range bucketItems {
+		list = append(list, newBucketItemResponse(bucketItem))
 	}
 	return list
 }
@@ -197,7 +197,7 @@ func dbGetBucketItem(id string) (*BucketItem, error) {
 			return a, nil
 		}
 	}
-	return nil, errors.New("article not found")
+	return nil, errors.New("bucketItem not found")
 }
 
 func dbGetBucketItemBySlug(slug string) (*BucketItem, error) {
@@ -206,17 +206,17 @@ func dbGetBucketItemBySlug(slug string) (*BucketItem, error) {
 			return a, nil
 		}
 	}
-	return nil, errors.New("article not found")
+	return nil, errors.New("bucketItem not found")
 }
 
-func dbUpdateBucketItem(id string, article *BucketItem) (*BucketItem, error) {
+func dbUpdateBucketItem(id string, bucketItem *BucketItem) (*BucketItem, error) {
 	for i, a := range bucketItems {
 		if a.ID == id {
-			bucketItems[i] = article
-			return article, nil
+			bucketItems[i] = bucketItem
+			return bucketItem, nil
 		}
 	}
-	return nil, errors.New("article not found")
+	return nil, errors.New("bucketItem not found")
 }
 
 func dbRemoveBucketItem(id string) (*BucketItem, error) {
@@ -226,5 +226,5 @@ func dbRemoveBucketItem(id string) (*BucketItem, error) {
 			return a, nil
 		}
 	}
-	return nil, errors.New("article not found")
+	return nil, errors.New("bucketItem not found")
 }
