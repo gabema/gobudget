@@ -15,16 +15,6 @@ var settings = mssql.ConnectionURL{
 	Password: "budgetPassword",
 }
 
-type Birthday struct {
-	// Name maps the "Name" property to the "name" column
-	// of the "birthday" table.
-	Name string `db:"name"`
-
-	// Born maps the "Born" property to the "born" column
-	// of the "birthday" table.
-	Born time.Time `db:"born"`
-}
-
 const categorySchema string = `
 CREATE TABLE [dbo].[category] (
 	[id] [int] IDENTITY(1,1) NOT NULL,
@@ -79,7 +69,7 @@ CREATE TABLE [dbo].[template] (
 const templateItemSchema string = `
   CREATE TABLE [dbo].[templateitem] (
 	  [id] [int] IDENTITY(1,1) NOT NULL,
-	  [templateID int NOT NULL,
+	  [templateID] int NOT NULL,
 	  [bucketID] int NOT NULL,
 	  [name] nvarchar(100) NOT NULL,
 	  [deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
@@ -91,8 +81,8 @@ const templateItemSchema string = `
 	) ON [PRIMARY]
 	`
 
-// go run db.go category.go bucket.go bucketItem.go errors.go
-func main() {
+// go run db.go category.go bucket.go bucketItem.go errors.go template.go templateItem.go
+func dbInitMain() {
 	// Attemping to establish a connection to the database.
 	sess, err := mssql.Open(settings)
 	if err != nil {
@@ -200,8 +190,51 @@ func main() {
 		fmt.Printf("Table already created %q\n", err)
 	}
 
+	templateCollection := sess.Collection("template")
+	templateCollection.Insert(Template{
+		Name: "Bimonthly paycheck",
+	})
+	res = templateCollection.Find()
+	// Query all results and fill the birthdays variable with them.
+	var templates []Template
+
+	err = res.All(&templates)
+	if err != nil {
+		log.Fatalf("res.All(): %q\n", err)
+	}
+	// Printing to stdout.
+	for _, template := range templates {
+		fmt.Printf("%s has ID:%d.\n",
+			template.Name,
+			template.Id,
+		)
+	}
+
 	_, err = sess.Exec(templateItemSchema)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
+	}
+	templateItemCollection := sess.Collection("templateitem")
+	templateItemCollection.Insert(TemplateItem{
+		Name:       "Deposit",
+		BucketID:   buckets[0].Id,
+		TemplateID: templates[0].Id,
+		Deposit:    2.99,
+		Withdraw:   1.45,
+	})
+	res = templateItemCollection.Find()
+	// Query all results and fill the birthdays variable with them.
+	var templateItems []TemplateItem
+
+	err = res.All(&templateItems)
+	if err != nil {
+		log.Fatalf("res.All(): %q\n", err)
+	}
+	// Printing to stdout.
+	for _, templateItem := range templateItems {
+		fmt.Printf("%s has ID:%d.\n",
+			templateItem.Name,
+			templateItem.ID,
+		)
 	}
 }
