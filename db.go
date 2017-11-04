@@ -25,15 +25,6 @@ type Birthday struct {
 	Born time.Time `db:"born"`
 }
 
-type Category struct {
-	// Name maps the "Name" property to the "name" column
-	// of the "birthday" table.
-	Name string `db:"name"`
-
-	// Id of the category
-	Id int `db:"id,omitempty"`
-}
-
 func main() {
 	// Attemping to establish a connection to the database.
 	sess, err := mssql.Open(settings)
