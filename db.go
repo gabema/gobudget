@@ -25,6 +25,73 @@ type Birthday struct {
 	Born time.Time `db:"born"`
 }
 
+const categorySchema string = `
+CREATE TABLE [dbo].[category] (
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[name] nvarchar(100) NOT NULL,
+	CONSTRAINT [PK_category] PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+`
+
+const bucketSchema string = `
+CREATE TABLE [dbo].[bucket] (
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[categoryID] [int] NOT NULL,
+	[name] nvarchar(100) NOT NULL,
+	[description] nvarchar(1000) NOT NULL DEFAULT N'',
+	[isLiquid] bit NOT NULL DEFAULT 1
+   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED 
+  (
+	  [id] ASC
+  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+  ) ON [PRIMARY]
+`
+
+const bucketItemSchema string = `
+CREATE TABLE [dbo].[bucketitem] (
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[bucketID] [int] NOT NULL,
+	[transaction] datetime2(0) NOT NULL,
+	[name] nvarchar(100) NOT NULL,
+	[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
+	[withdrawl] decimal(10,2) NOT NULL DEFAULT 0.00
+   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED 
+  (
+	  [id] ASC
+  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+  ) ON [PRIMARY]
+  `
+
+const templateSchema string = `
+CREATE TABLE [dbo].[template] (
+	  [id] [int] IDENTITY(1,1) NOT NULL,
+	  [name] nvarchar(100) NOT NULL,
+	 CONSTRAINT [PK_template] PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+	`
+
+const templateItemSchema string = `
+  CREATE TABLE [dbo].[templateitem] (
+	  [id] [int] IDENTITY(1,1) NOT NULL,
+	  [templateID int NOT NULL,
+	  [bucketID] int NOT NULL,
+	  [name] nvarchar(100) NOT NULL,
+	  [deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
+	  [withdraw] decimal(10,2) NOT NULL DEFAULT 0.00
+	 CONSTRAINT [PK_templateitem] PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+	`
+
+// go run db.go category.go bucket.go bucketItem.go errors.go
 func main() {
 	// Attemping to establish a connection to the database.
 	sess, err := mssql.Open(settings)
@@ -39,30 +106,7 @@ func main() {
 	sess.Collection("bucket").Truncate()
 	sess.Collection("bucketitem").Truncate()
 
-	// _, err = sess.Exec(`
-	// 	CREATE TABLE [dbo].[birthday](
-	// 		[id] [int] IDENTITY(1,1) NOT NULL,
-	// 		[born] [datetime2](0) NOT NULL,
-	// 		[name] [varchar](50) NOT NULL,
-	// 	 CONSTRAINT [PK_birthday] PRIMARY KEY CLUSTERED
-	// 	(
-	// 		[id] ASC
-	// 	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-	// 	) ON [PRIMARY]
-	// 	`)
-	// if err != nil {
-	// 	fmt.Printf("Table already created %q\n", err)
-	// }
-	_, err = sess.Exec(`
-		CREATE TABLE [dbo].[category] (
-			[id] [int] IDENTITY(1,1) NOT NULL,
-			[name] nvarchar(100) NOT NULL,
-		   CONSTRAINT [PK_category] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
-		`)
+	_, err = sess.Exec(categorySchema)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
 	}
@@ -90,19 +134,7 @@ func main() {
 		)
 	}
 
-	_, err = sess.Exec(`
-		CREATE TABLE [dbo].[bucket] (
-			[id] [int] IDENTITY(1,1) NOT NULL,
-			[categoryID] [int] NOT NULL,
-			[name] nvarchar(100) NOT NULL,
-			[description] nvarchar(1000) NOT NULL DEFAULT N'',
-			[isLiquid] bit NOT NULL DEFAULT 1
-		   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
-		`)
+	_, err = sess.Exec(bucketSchema)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
 	}
@@ -133,97 +165,43 @@ func main() {
 		)
 	}
 
-	_, err = sess.Exec(`
-		CREATE TABLE [dbo].[bucketitem] (
-			[id] [int] IDENTITY(1,1) NOT NULL,
-			[bucketID] [int] NOT NULL,
-			[transaction] datetime2(0) NOT NULL,
-			[name] nvarchar(100) NOT NULL,
-			[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
-			[withdrawl] decimal(10,2) NOT NULL DEFAULT 0.00
-		   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
-		  `)
+	_, err = sess.Exec(bucketItemSchema)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
 	}
 
-	_, err = sess.Exec(`		
-		CREATE TABLE [dbo].[template] (
-			[id] [int] IDENTITY(1,1) NOT NULL,
-			[name] nvarchar(100) NOT NULL,
-		   CONSTRAINT [PK_template] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
-		  `)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
-
-	_, err = sess.Exec(`
-		CREATE TABLE [dbo].[templateitem] (
-			[id] [int] IDENTITY(1,1) NOT NULL,
-			[templateID int NOT NULL,
-			[bucketID] int NOT NULL,
-			[name] nvarchar(100) NOT NULL,
-			[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
-			[withdraw] decimal(10,2) NOT NULL DEFAULT 0.00
-		   CONSTRAINT [PK_templateitem] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
-		  `)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
-
-	// Pointing to the "birthday" table.
-	birthdayCollection := sess.Collection("birthday")
-
-	// Attempt to remove existing rows (if any).
-	err = birthdayCollection.Truncate()
-	if err != nil {
-		log.Fatalf("Truncate(): %q\n", err)
-	}
-
-	// Inserting some rows into the "birthday" table.
-	birthdayCollection.Insert(Birthday{
-		Name: "Hayao Miyazaki",
-		Born: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC),
+	bucketItemCollection := sess.Collection("bucketitem")
+	bucketItemCollection.Insert(BucketItem{
+		Name:        "Initial Deposit",
+		BucketID:    buckets[0].Id,
+		Transaction: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC),
+		Deposit:     3.99,
+		Withdraw:    0.0,
 	})
 
-	birthdayCollection.Insert(Birthday{
-		Name: "Nobuo Uematsu",
-		Born: time.Date(1959, time.March, 21, 0, 0, 0, 0, time.UTC),
-	})
-
-	birthdayCollection.Insert(Birthday{
-		Name: "Hironobu Sakaguchi",
-		Born: time.Date(1962, time.November, 25, 0, 0, 0, 0, time.UTC),
-	})
-
-	// Let's query for the results we've just inserted.
-	res = birthdayCollection.Find()
-
+	res = bucketItemCollection.Find()
 	// Query all results and fill the birthdays variable with them.
-	var birthdays []Birthday
+	var bucketItems []BucketItem
 
-	err = res.All(&birthdays)
+	err = res.All(&bucketItems)
 	if err != nil {
 		log.Fatalf("res.All(): %q\n", err)
 	}
-
 	// Printing to stdout.
-	for _, birthday := range birthdays {
-		fmt.Printf("%s was born in %s.\n",
-			birthday.Name,
-			birthday.Born.Format("January 2, 2006"),
+	for _, bucketItem := range bucketItems {
+		fmt.Printf("%s has ID:%d.\n",
+			bucketItem.Name,
+			bucketItem.ID,
 		)
+	}
+
+	_, err = sess.Exec(templateSchema)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+
+	_, err = sess.Exec(templateItemSchema)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
 	}
 }

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
@@ -27,11 +28,11 @@ func BucketItemCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var bucketItem *BucketItem
 		var err error
+		var bucketItemID int
 
-		if bucketItemID := chi.URLParam(r, "bucketItemID"); bucketItemID != "" {
+		if bucketItemStr := chi.URLParam(r, "bucketItemID"); bucketItemStr != "" {
+			bucketItemID, err = strconv.Atoi(bucketItemStr)
 			bucketItem, err = dbGetBucketItem(bucketItemID)
-		} else if articleSlug := chi.URLParam(r, "articleSlug"); articleSlug != "" {
-			bucketItem, err = dbGetBucketItemBySlug(articleSlug)
 		} else {
 			render.Render(w, r, ErrNotFound)
 			return
@@ -114,21 +115,18 @@ func deleteBucketItem(w http.ResponseWriter, r *http.Request) {
 	render.Render(w, r, newBucketItemResponse(bucketItem))
 }
 
-// BucketItem data model. I suggest looking at https://upper.io for an easy
-// and powerful data persistence adapter.
 type BucketItem struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Slug  string `json:"slug"`
+	ID          int       `db:"id,omitempty" json:"id"`
+	BucketID    int       `db:"bucketID" json:"bucketID"`
+	Name        string    `db:"name" json:"name"`
+	Transaction time.Time `db:"transaction" json:"transaction"`
+	Deposit     float32   `db:"deposit" json:"d"`
+	Withdraw    float32   `db:"withdrawl" json:"w"`
 }
 
 // BucketItem fixture data
 var bucketItems = []*BucketItem{
-	{ID: "1", Title: "Hi", Slug: "hi"},
-	{ID: "2", Title: "sup", Slug: "sup"},
-	{ID: "3", Title: "alo", Slug: "alo"},
-	{ID: "4", Title: "bonjour", Slug: "bonjour"},
-	{ID: "5", Title: "whats up", Slug: "whats-up"},
+	{ID: 5, BucketID: 1, Name: "whats-up", Transaction: time.Date(1959, time.March, 21, 0, 0, 0, 0, time.UTC), Deposit: 14.99, Withdraw: 0.0},
 }
 
 // BucketItemRequest is the request payload for BucketItem data model.
@@ -147,8 +145,8 @@ type BucketItemRequest struct {
 
 func (a *BucketItemRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = ""                                       // unset the protected ID
-	a.BucketItem.Title = strings.ToLower(a.BucketItem.Title) // as an example, we down-case
+	a.ProtectedID = ""                                     // unset the protected ID
+	a.BucketItem.Name = strings.ToLower(a.BucketItem.Name) // as an example, we down-case
 	return nil
 }
 
@@ -185,13 +183,13 @@ func newBucketItemListResponse(bucketItems []*BucketItem) []render.Renderer {
 	return list
 }
 
-func dbNewBucketItem(bucketItem *BucketItem) (string, error) {
-	bucketItem.ID = fmt.Sprintf("%d", rand.Intn(100)+10)
+func dbNewBucketItem(bucketItem *BucketItem) (int, error) {
+	bucketItem.ID = rand.Intn(100) + 10
 	bucketItems = append(bucketItems, bucketItem)
 	return bucketItem.ID, nil
 }
 
-func dbGetBucketItem(id string) (*BucketItem, error) {
+func dbGetBucketItem(id int) (*BucketItem, error) {
 	for _, a := range bucketItems {
 		if a.ID == id {
 			return a, nil
@@ -200,16 +198,7 @@ func dbGetBucketItem(id string) (*BucketItem, error) {
 	return nil, errors.New("bucketItem not found")
 }
 
-func dbGetBucketItemBySlug(slug string) (*BucketItem, error) {
-	for _, a := range bucketItems {
-		if a.Slug == slug {
-			return a, nil
-		}
-	}
-	return nil, errors.New("bucketItem not found")
-}
-
-func dbUpdateBucketItem(id string, bucketItem *BucketItem) (*BucketItem, error) {
+func dbUpdateBucketItem(id int, bucketItem *BucketItem) (*BucketItem, error) {
 	for i, a := range bucketItems {
 		if a.ID == id {
 			bucketItems[i] = bucketItem
@@ -219,7 +208,7 @@ func dbUpdateBucketItem(id string, bucketItem *BucketItem) (*BucketItem, error) 
 	return nil, errors.New("bucketItem not found")
 }
 
-func dbRemoveBucketItem(id string) (*BucketItem, error) {
+func dbRemoveBucketItem(id int) (*BucketItem, error) {
 	for i, a := range bucketItems {
 		if a.ID == id {
 			bucketItems = append((bucketItems)[:i], (bucketItems)[i+1:]...)
