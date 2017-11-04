@@ -27,7 +27,7 @@ func main() {
 
 	r.Route("/buckets", func(r chi.Router) {
 		r.Get("/", listBuckets)
-		r.Post("/", createBucket) // POST /bucketItems
+		r.Post("/", createBucket) // POST /buckets
 
 		r.Route("/{bucketID}", func(r chi.Router) {
 			r.Use(BucketCtx)            // Load the *Bucket on the request context
@@ -46,6 +46,18 @@ func main() {
 			r.Get("/", getCategory)       // GET /categories/123
 			r.Put("/", updateCategory)    // PUT /categories/123
 			r.Delete("/", deleteCategory) // DELETE /categories/123
+		})
+	})
+
+	r.Route("/templates", func(r chi.Router) {
+		r.Get("/", listTemplates)
+		r.Post("/", createTemplate) // POST /templates
+
+		r.Route("/{templateID}", func(r chi.Router) {
+			r.Use(TemplateCtx)            // Load the *Template on the request context
+			r.Get("/", getTemplate)       // GET /templates/123
+			r.Put("/", updateTemplate)    // PUT /templates/123
+			r.Delete("/", deleteTemplate) // DELETE /templates/123
 		})
 	})
 
