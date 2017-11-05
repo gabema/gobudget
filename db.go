@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
+	db "upper.io/db.v3"
 	"upper.io/db.v3/mssql"
 )
 
@@ -160,31 +160,6 @@ func dbInitMain() {
 		fmt.Printf("Table already created %q\n", err)
 	}
 
-	bucketItemCollection := sess.Collection("bucketitem")
-	bucketItemCollection.Insert(BucketItem{
-		Name:        "Initial Deposit",
-		BucketID:    buckets[0].Id,
-		Transaction: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC),
-		Deposit:     3.99,
-		Withdraw:    0.0,
-	})
-
-	res = bucketItemCollection.Find()
-	// Query all results and fill the birthdays variable with them.
-	var bucketItems []BucketItem
-
-	err = res.All(&bucketItems)
-	if err != nil {
-		log.Fatalf("res.All(): %q\n", err)
-	}
-	// Printing to stdout.
-	for _, bucketItem := range bucketItems {
-		fmt.Printf("%s has ID:%d.\n",
-			bucketItem.Name,
-			bucketItem.ID,
-		)
-	}
-
 	_, err = sess.Exec(templateSchema)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
@@ -237,4 +212,77 @@ func dbInitMain() {
 			templateItem.ID,
 		)
 	}
+}
+
+func dbNewBucketItem(bucketItem *BucketItem) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketItemCollection := sess.Collection("bucketitem")
+	bucketItemCollection.Insert(bucketItem)
+	res := bucketItemCollection.Find()
+	err = res.One(bucketItem)
+
+	return err
+}
+
+func dbGetBucketItems() ([]*BucketItem, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var bucketItems []*BucketItem
+	bucketItemCollection := sess.Collection("bucketitem")
+	res := bucketItemCollection.Find()
+	err = res.All(&bucketItems)
+
+	return bucketItems, err
+}
+
+func dbGetBucketItem(id int) (*BucketItem, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var bucketItem BucketItem
+	bucketItemCollection := sess.Collection("bucketitem")
+	res := bucketItemCollection.Find(db.Cond{"id": id})
+	err = res.One(&bucketItem)
+
+	return &bucketItem, err
+}
+
+func dbUpdateBucketItem(id int, bucketItem *BucketItem) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil
+	}
+	defer sess.Close()
+
+	bucketItemCollection := sess.Collection("bucketitem")
+	res := bucketItemCollection.Find(db.Cond{"id": id})
+	err = res.One(bucketItem)
+
+	return err
+}
+
+func dbRemoveBucketItem(id int) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketItemCollection := sess.Collection("bucketitem")
+	res := bucketItemCollection.Find(db.Cond{"id": id})
+	err = res.Delete()
+
+	return err
 }

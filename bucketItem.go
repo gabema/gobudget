@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +13,13 @@ import (
 
 // listBucketItems lists out all the BucketItems
 func listBucketItems(w http.ResponseWriter, r *http.Request) {
-	if err := render.RenderList(w, r, newBucketItemListResponse(bucketItems)); err != nil {
+	bucketItems, err := dbGetBucketItems()
+	if err != nil {
+		render.Render(w, r, ErrRender(err))
+		return
+	}
+
+	if err = render.RenderList(w, r, newBucketItemListResponse(bucketItems)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
 	}
@@ -28,9 +32,9 @@ func BucketItemCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var bucketItem *BucketItem
 		var err error
-		var bucketItemID int
 
 		if bucketItemStr := chi.URLParam(r, "bucketItemID"); bucketItemStr != "" {
+			var bucketItemID int
 			bucketItemID, err = strconv.Atoi(bucketItemStr)
 			bucketItem, err = dbGetBucketItem(bucketItemID)
 		} else {
@@ -48,6 +52,8 @@ func BucketItemCtx(next http.Handler) http.Handler {
 }
 
 func searchBucketItems(w http.ResponseWriter, r *http.Request) {
+	var bucketItems []*BucketItem
+	bucketItems, _ = dbGetBucketItems()
 	render.RenderList(w, r, newBucketItemListResponse(bucketItems))
 }
 
@@ -106,7 +112,7 @@ func deleteBucketItem(w http.ResponseWriter, r *http.Request) {
 	// middleware. The worst case, the recoverer middleware will save us.
 	bucketItem := r.Context().Value("bucketItem").(*BucketItem)
 
-	bucketItem, err = dbRemoveBucketItem(bucketItem.ID)
+	err = dbRemoveBucketItem(bucketItem.ID)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
@@ -124,11 +130,6 @@ type BucketItem struct {
 	Withdraw    float32   `db:"withdrawl" json:"w"`
 }
 
-// BucketItem fixture data
-var bucketItems = []*BucketItem{
-	{ID: 5, BucketID: 1, Name: "whats-up", Transaction: time.Date(1959, time.March, 21, 0, 0, 0, 0, time.UTC), Deposit: 14.99, Withdraw: 0.0},
-}
-
 // BucketItemRequest is the request payload for BucketItem data model.
 //
 // NOTE: It's good practice to have well defined request and response payloads
@@ -140,12 +141,12 @@ var bucketItems = []*BucketItem{
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type BucketItemRequest struct {
 	*BucketItem
-	ProtectedID string `json:"id"` // override 'id' json to have more control
+	ProtectedID int `json:"id"` // override 'id' json to have more control
 }
 
 func (a *BucketItemRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = ""                                     // unset the protected ID
+	a.ProtectedID = 0                                      // unset the protected ID
 	a.BucketItem.Name = strings.ToLower(a.BucketItem.Name) // as an example, we down-case
 	return nil
 }
@@ -181,39 +182,4 @@ func newBucketItemListResponse(bucketItems []*BucketItem) []render.Renderer {
 		list = append(list, newBucketItemResponse(bucketItem))
 	}
 	return list
-}
-
-func dbNewBucketItem(bucketItem *BucketItem) (int, error) {
-	bucketItem.ID = rand.Intn(100) + 10
-	bucketItems = append(bucketItems, bucketItem)
-	return bucketItem.ID, nil
-}
-
-func dbGetBucketItem(id int) (*BucketItem, error) {
-	for _, a := range bucketItems {
-		if a.ID == id {
-			return a, nil
-		}
-	}
-	return nil, errors.New("bucketItem not found")
-}
-
-func dbUpdateBucketItem(id int, bucketItem *BucketItem) (*BucketItem, error) {
-	for i, a := range bucketItems {
-		if a.ID == id {
-			bucketItems[i] = bucketItem
-			return bucketItem, nil
-		}
-	}
-	return nil, errors.New("bucketItem not found")
-}
-
-func dbRemoveBucketItem(id int) (*BucketItem, error) {
-	for i, a := range bucketItems {
-		if a.ID == id {
-			bucketItems = append((bucketItems)[:i], (bucketItems)[i+1:]...)
-			return a, nil
-		}
-	}
-	return nil, errors.New("bucketItem not found")
 }

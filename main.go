@@ -6,7 +6,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go
+// go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go db.go
 func main() {
 	r := chi.NewRouter()
 
