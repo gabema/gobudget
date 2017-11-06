@@ -262,12 +262,16 @@ func dbGetBucketItem(id int) (*BucketItem, error) {
 func dbUpdateBucketItem(id int, bucketItem *BucketItem) error {
 	sess, err := mssql.Open(settings)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer sess.Close()
 
 	bucketItemCollection := sess.Collection("bucketitem")
 	res := bucketItemCollection.Find(db.Cond{"id": id})
+	err = res.Update(bucketItem)
+	if err != nil {
+		return err
+	}
 	err = res.One(bucketItem)
 
 	return err
@@ -282,6 +286,237 @@ func dbRemoveBucketItem(id int) error {
 
 	bucketItemCollection := sess.Collection("bucketitem")
 	res := bucketItemCollection.Find(db.Cond{"id": id})
+	err = res.Delete()
+
+	return err
+}
+
+func dbNewBucket(bucket *Bucket) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketCollection := sess.Collection("bucket")
+	bucketCollection.Insert(bucket)
+	res := bucketCollection.Find()
+	err = res.One(bucket)
+
+	return err
+}
+
+func dbGetBuckets() ([]*Bucket, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var buckets []*Bucket
+	bucketCollection := sess.Collection("bucket")
+	res := bucketCollection.Find()
+	err = res.All(&buckets)
+
+	return buckets, err
+}
+
+func dbGetBucket(id int) (*Bucket, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var bucket Bucket
+	bucketCollection := sess.Collection("bucket")
+	res := bucketCollection.Find(db.Cond{"id": id})
+	err = res.One(&bucket)
+
+	return &bucket, err
+}
+
+func dbUpdateBucket(id int, bucket *Bucket) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketCollection := sess.Collection("bucket")
+	res := bucketCollection.Find(db.Cond{"id": id})
+	err = res.Update(bucket)
+	if err != nil {
+		return err
+	}
+	err = res.One(bucket)
+
+	return err
+}
+
+func dbRemoveBucket(id int) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketCollection := sess.Collection("bucket")
+	res := bucketCollection.Find(db.Cond{"id": id})
+	err = res.Delete()
+
+	return err
+}
+
+func dbNewCategory(category *Category) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	categoryCollection := sess.Collection("category")
+	categoryCollection.Insert(category)
+	res := categoryCollection.Find()
+	err = res.One(category)
+
+	return err
+}
+
+func dbGetCategories() ([]*Category, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var categories []*Category
+	categoryCollection := sess.Collection("category")
+	res := categoryCollection.Find()
+	err = res.All(&categories)
+
+	return categories, err
+}
+
+func dbGetCategory(id int) (*Category, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var category Category
+	categoryCollection := sess.Collection("category")
+	res := categoryCollection.Find(db.Cond{"id": id})
+	err = res.One(&category)
+
+	return &category, err
+}
+
+func dbUpdateCategory(id int, category *Category) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	categoryCollection := sess.Collection("category")
+	res := categoryCollection.Find(db.Cond{"id": id})
+	err = res.Update(category)
+	if err != nil {
+		return err
+	}
+	err = res.One(category)
+
+	return err
+}
+
+func dbRemoveCategory(id int) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	categoryCollection := sess.Collection("category")
+	res := categoryCollection.Find(db.Cond{"id": id})
+	err = res.Delete()
+
+	return err
+}
+
+func dbNewTemplate(template *Template) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateCollection := sess.Collection("template")
+	templateCollection.Insert(template)
+	res := templateCollection.Find()
+	err = res.One(template)
+
+	return err
+}
+
+func dbGetTemplates() ([]*Template, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var templates []*Template
+	templateCollection := sess.Collection("template")
+	res := templateCollection.Find()
+	err = res.All(&templates)
+
+	return templates, err
+}
+
+func dbGetTemplate(id int) (*Template, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var template Template
+	templateCollection := sess.Collection("template")
+	res := templateCollection.Find(db.Cond{"id": id})
+	err = res.One(&template)
+
+	return &template, err
+}
+
+func dbUpdateTemplate(id int, template *Template) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateCollection := sess.Collection("template")
+	res := templateCollection.Find(db.Cond{"id": id})
+	err = res.Update(template)
+	if err != nil {
+		return err
+	}
+	err = res.One(template)
+
+	return err
+}
+
+func dbRemoveTemplate(id int) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateCollection := sess.Collection("template")
+	res := templateCollection.Find(db.Cond{"id": id})
 	err = res.Delete()
 
 	return err

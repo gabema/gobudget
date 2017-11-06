@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +18,12 @@ type Category struct {
 
 // listCategories lists out all the Categories
 func listCategories(w http.ResponseWriter, r *http.Request) {
+	categories, err := dbGetCategories()
+	if err != nil {
+		render.Render(w, r, ErrRender(err))
+		return
+	}
+
 	if err := render.RenderList(w, r, newCategoryListResponse(categories)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
@@ -106,22 +110,13 @@ func deleteCategory(w http.ResponseWriter, r *http.Request) {
 	// middleware. The worst case, the recoverer middleware will save us.
 	category := r.Context().Value("category").(*Category)
 
-	category, err = dbRemoveCategory(category.Id)
+	err = dbRemoveCategory(category.Id)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 
 	render.Render(w, r, newCategoryResponse(category))
-}
-
-// Category fixture data
-var categories = []*Category{
-	{Id: 1, Name: "Hi"},
-	{Id: 2, Name: "sup"},
-	{Id: 3, Name: "alo"},
-	{Id: 4, Name: "bonjour"},
-	{Id: 5, Name: "whats up"},
 }
 
 // CategoryRequest is the request payload for Category data model.
@@ -176,39 +171,4 @@ func newCategoryListResponse(categories []*Category) []render.Renderer {
 		list = append(list, newCategoryResponse(category))
 	}
 	return list
-}
-
-func dbNewCategory(category *Category) (int, error) {
-	category.Id = rand.Intn(100) + 10
-	categories = append(categories, category)
-	return category.Id, nil
-}
-
-func dbGetCategory(id int) (*Category, error) {
-	for _, a := range categories {
-		if a.Id == id {
-			return a, nil
-		}
-	}
-	return nil, errors.New("category not found")
-}
-
-func dbUpdateCategory(id int, category *Category) (*Category, error) {
-	for i, a := range categories {
-		if a.Id == id {
-			categories[i] = category
-			return category, nil
-		}
-	}
-	return nil, errors.New("category not found")
-}
-
-func dbRemoveCategory(id int) (*Category, error) {
-	for i, a := range categories {
-		if a.Id == id {
-			categories = append((categories)[:i], (categories)[i+1:]...)
-			return a, nil
-		}
-	}
-	return nil, errors.New("category not found")
 }

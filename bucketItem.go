@@ -67,7 +67,10 @@ func createBucketItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bucketItem := data.BucketItem
-	dbNewBucketItem(bucketItem)
+	if err := dbNewBucketItem(bucketItem); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
 
 	render.Status(r, http.StatusCreated)
 	render.Render(w, r, newBucketItemResponse(bucketItem))
@@ -99,7 +102,12 @@ func updateBucketItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bucketItem = data.BucketItem
-	dbUpdateBucketItem(bucketItem.ID, bucketItem)
+	bucketItemID := bucketItem.ID
+	bucketItem.ID = 0
+	if err := dbUpdateBucketItem(bucketItemID, bucketItem); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
 
 	render.Render(w, r, newBucketItemResponse(bucketItem))
 }

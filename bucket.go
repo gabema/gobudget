@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
-	"math/rand"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
@@ -26,7 +23,13 @@ type Bucket struct {
 
 // listBuckets lists out all the Buckets
 func listBuckets(w http.ResponseWriter, r *http.Request) {
-	if err := render.RenderList(w, r, newBucketListResponse(buckets)); err != nil {
+	buckets, err := dbGetBuckets()
+	if err != nil {
+		render.Render(w, r, ErrRender(err))
+		return
+	}
+
+	if err = render.RenderList(w, r, newBucketListResponse(buckets)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
 	}
@@ -99,7 +102,13 @@ func updateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bucket = data.Bucket
-	dbUpdateBucket(bucket.Id, bucket)
+	bucketID := bucket.Id
+	bucket.Id = 0
+
+	if err := dbUpdateBucket(bucketID, bucket); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
 
 	render.Render(w, r, newBucketResponse(bucket))
 }
@@ -112,22 +121,13 @@ func deleteBucket(w http.ResponseWriter, r *http.Request) {
 	// middleware. The worst case, the recoverer middleware will save us.
 	bucket := r.Context().Value("bucket").(*Bucket)
 
-	bucket, err = dbRemoveBucket(bucket.Id)
+	err = dbRemoveBucket(bucket.Id)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 
 	render.Render(w, r, newBucketResponse(bucket))
-}
-
-// Bucket fixture data
-var buckets = []*Bucket{
-	{Id: 1, Name: "Hi", CategoryID: 1, IsLiquid: true},
-	{Id: 2, Name: "sup", CategoryID: 2, IsLiquid: true},
-	{Id: 3, Name: "alo", CategoryID: 1, IsLiquid: true},
-	{Id: 4, Name: "bonjour", CategoryID: 1, IsLiquid: true},
-	{Id: 5, Name: "whats up", CategoryID: 2, IsLiquid: true},
 }
 
 // BucketRequest is the request payload for Bucket data model.
@@ -146,8 +146,8 @@ type BucketRequest struct {
 
 func (a *BucketRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = ""                             // unset the protected ID
-	a.Bucket.Name = strings.ToLower(a.Bucket.Name) // as an example, we down-case
+	a.ProtectedID = "" // unset the protected ID
+	// a.Bucket.Name = strings.ToLower(a.Bucket.Name) // as an example, we down-case
 	return nil
 }
 
@@ -174,47 +174,10 @@ func (rd *BucketResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-type BucketListResponse []*BucketResponse
-
 func newBucketListResponse(buckets []*Bucket) []render.Renderer {
 	list := []render.Renderer{}
 	for _, bucket := range buckets {
 		list = append(list, newBucketResponse(bucket))
 	}
 	return list
-}
-
-func dbNewBucket(bucket *Bucket) (int, error) {
-	bucket.Id = rand.Intn(100) + 10
-	buckets = append(buckets, bucket)
-	return bucket.Id, nil
-}
-
-func dbGetBucket(id int) (*Bucket, error) {
-	for _, a := range buckets {
-		if a.Id == id {
-			return a, nil
-		}
-	}
-	return nil, errors.New("bucket not found")
-}
-
-func dbUpdateBucket(id int, bucket *Bucket) (*Bucket, error) {
-	for i, a := range buckets {
-		if a.Id == id {
-			buckets[i] = bucket
-			return bucket, nil
-		}
-	}
-	return nil, errors.New("bucket not found")
-}
-
-func dbRemoveBucket(id int) (*Bucket, error) {
-	for i, a := range buckets {
-		if a.Id == id {
-			buckets = append((buckets)[:i], (buckets)[i+1:]...)
-			return a, nil
-		}
-	}
-	return nil, errors.New("bucket not found")
 }

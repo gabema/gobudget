@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,7 +17,13 @@ type Template struct {
 
 // listTemplates lists out all the Templates
 func listTemplates(w http.ResponseWriter, r *http.Request) {
-	if err := render.RenderList(w, r, newTemplateListResponse(templates)); err != nil {
+	templates, err := dbGetTemplates()
+	if err != nil {
+		render.Render(w, r, ErrRender(err))
+		return
+	}
+
+	if err = render.RenderList(w, r, newTemplateListResponse(templates)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
 	}
@@ -60,7 +64,10 @@ func createTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	template := data.Template
-	dbNewTemplate(template)
+	if err := dbNewTemplate(template); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
 
 	render.Status(r, http.StatusCreated)
 	render.Render(w, r, newTemplateResponse(template))
@@ -105,22 +112,13 @@ func deleteTemplate(w http.ResponseWriter, r *http.Request) {
 	// middleware. The worst case, the recoverer middleware will save us.
 	template := r.Context().Value("template").(*Template)
 
-	template, err = dbRemoveTemplate(template.Id)
+	err = dbRemoveTemplate(template.Id)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 
 	render.Render(w, r, newTemplateResponse(template))
-}
-
-// Template fixture data
-var templates = []*Template{
-	{Id: 1, Name: "Hi"},
-	{Id: 2, Name: "sup"},
-	{Id: 3, Name: "alo"},
-	{Id: 4, Name: "bonjour"},
-	{Id: 5, Name: "whats up"},
 }
 
 // TemplateRequest is the request payload for Template data model.
@@ -175,39 +173,4 @@ func newTemplateListResponse(templates []*Template) []render.Renderer {
 		list = append(list, newTemplateResponse(template))
 	}
 	return list
-}
-
-func dbNewTemplate(template *Template) (int, error) {
-	template.Id = rand.Intn(100) + 10
-	templates = append(templates, template)
-	return template.Id, nil
-}
-
-func dbGetTemplate(id int) (*Template, error) {
-	for _, a := range templates {
-		if a.Id == id {
-			return a, nil
-		}
-	}
-	return nil, errors.New("template not found")
-}
-
-func dbUpdateTemplate(id int, template *Template) (*Template, error) {
-	for i, a := range templates {
-		if a.Id == id {
-			templates[i] = template
-			return template, nil
-		}
-	}
-	return nil, errors.New("template not found")
-}
-
-func dbRemoveTemplate(id int) (*Template, error) {
-	for i, a := range templates {
-		if a.Id == id {
-			templates = append((templates)[:i], (templates)[i+1:]...)
-			return a, nil
-		}
-	}
-	return nil, errors.New("template not found")
 }
