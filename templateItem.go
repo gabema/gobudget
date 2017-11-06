@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +12,12 @@ import (
 
 // listTemplateItems lists out all the TemplateItems
 func listTemplateItems(w http.ResponseWriter, r *http.Request) {
+	templateItems, err := dbGetTemplateItems()
+	if err != nil {
+		render.Render(w, r, ErrRender(err))
+		return
+	}
+
 	if err := render.RenderList(w, r, newTemplateItemListResponse(templateItems)); err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
@@ -47,6 +51,7 @@ func TemplateItemCtx(next http.Handler) http.Handler {
 }
 
 func searchTemplateItems(w http.ResponseWriter, r *http.Request) {
+	templateItems, _ := dbGetTemplateItems()
 	render.RenderList(w, r, newTemplateItemListResponse(templateItems))
 }
 
@@ -105,7 +110,7 @@ func deleteTemplateItem(w http.ResponseWriter, r *http.Request) {
 	// middleware. The worst case, the recoverer middleware will save us.
 	templateItem := r.Context().Value("templateItem").(*TemplateItem)
 
-	templateItem, err = dbRemoveTemplateItem(templateItem.ID)
+	err = dbRemoveTemplateItem(templateItem.ID)
 	if err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
@@ -121,11 +126,6 @@ type TemplateItem struct {
 	Name       string  `db:"name" json:"name"`
 	Deposit    float32 `db:"deposit" json:"d"`
 	Withdraw   float32 `db:"withdraw" json:"w"`
-}
-
-// TemplateItem fixture data
-var templateItems = []*TemplateItem{
-	{ID: 5, TemplateID: 1, BucketID: 1, Name: "whats-up", Deposit: 14.99, Withdraw: 0.0},
 }
 
 // TemplateItemRequest is the request payload for TemplateItem data model.
@@ -180,39 +180,4 @@ func newTemplateItemListResponse(templateItems []*TemplateItem) []render.Rendere
 		list = append(list, newTemplateItemResponse(templateItem))
 	}
 	return list
-}
-
-func dbNewTemplateItem(templateItem *TemplateItem) (int, error) {
-	templateItem.ID = rand.Intn(100) + 10
-	templateItems = append(templateItems, templateItem)
-	return templateItem.ID, nil
-}
-
-func dbGetTemplateItem(id int) (*TemplateItem, error) {
-	for _, a := range templateItems {
-		if a.ID == id {
-			return a, nil
-		}
-	}
-	return nil, errors.New("templateItem not found")
-}
-
-func dbUpdateTemplateItem(id int, templateItem *TemplateItem) (*TemplateItem, error) {
-	for i, a := range templateItems {
-		if a.ID == id {
-			templateItems[i] = templateItem
-			return templateItem, nil
-		}
-	}
-	return nil, errors.New("templateItem not found")
-}
-
-func dbRemoveTemplateItem(id int) (*TemplateItem, error) {
-	for i, a := range templateItems {
-		if a.ID == id {
-			templateItems = append((templateItems)[:i], (templateItems)[i+1:]...)
-			return a, nil
-		}
-	}
-	return nil, errors.New("templateItem not found")
 }

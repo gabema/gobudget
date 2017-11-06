@@ -521,3 +521,80 @@ func dbRemoveTemplate(id int) error {
 
 	return err
 }
+
+func dbNewTemplateItem(templateItem *TemplateItem) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateItemCollection := sess.Collection("templateitem")
+	templateItemCollection.Insert(templateItem)
+	res := templateItemCollection.Find()
+	err = res.One(templateItem)
+
+	return err
+}
+
+func dbGetTemplateItems() ([]*TemplateItem, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var templateItems []*TemplateItem
+	templateItemCollection := sess.Collection("templateitem")
+	res := templateItemCollection.Find()
+	err = res.All(&templateItems)
+
+	return templateItems, err
+}
+
+func dbGetTemplateItem(id int) (*TemplateItem, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	var templateItem TemplateItem
+	templateItemCollection := sess.Collection("templateitem")
+	res := templateItemCollection.Find(db.Cond{"id": id})
+	err = res.One(&templateItem)
+
+	return &templateItem, err
+}
+
+func dbUpdateTemplateItem(id int, templateItem *TemplateItem) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateItemCollection := sess.Collection("templateitem")
+	res := templateItemCollection.Find(db.Cond{"id": id})
+	err = res.Update(templateItem)
+	if err != nil {
+		return err
+	}
+	err = res.One(templateItem)
+
+	return err
+}
+
+func dbRemoveTemplateItem(id int) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	templateItemCollection := sess.Collection("templateitem")
+	res := templateItemCollection.Find(db.Cond{"id": id})
+	err = res.Delete()
+
+	return err
+}
