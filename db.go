@@ -3,86 +3,20 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	db "upper.io/db.v3"
 	"upper.io/db.v3/mssql"
 )
 
 var settings = mssql.ConnectionURL{
-	Host:     "127.0.0.1", // MSSQL server IP or name.
-	Database: "budget2",   // Database name.
-	User:     "budgetUser",
-	Password: "budgetPassword",
+	Host:     readEnvOrDefault("DB_HOST_NAME", "127.0.0.1"), // MSSQL server IP or name.
+	Database: readEnvOrDefault("DB_NAME", "budget2"),        // Database name.
+	User:     readEnvOrDefault("DB_USER", "budgetUser"),
+	Password: readEnvOrDefault("DB_PASSWORD", "budgetPassword"),
 }
 
-const categorySchema string = `
-CREATE TABLE [dbo].[category] (
-	[id] [int] IDENTITY(1,1) NOT NULL,
-	[name] nvarchar(100) NOT NULL,
-	CONSTRAINT [PK_category] PRIMARY KEY CLUSTERED 
-	(
-		[id] ASC
-	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-	) ON [PRIMARY]
-`
-
-const bucketSchema string = `
-CREATE TABLE [dbo].[bucket] (
-	[id] [int] IDENTITY(1,1) NOT NULL,
-	[categoryID] [int] NOT NULL,
-	[name] nvarchar(100) NOT NULL,
-	[description] nvarchar(1000) NOT NULL DEFAULT N'',
-	[isLiquid] bit NOT NULL DEFAULT 1
-   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED 
-  (
-	  [id] ASC
-  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-  ) ON [PRIMARY]
-`
-
-const bucketItemSchema string = `
-CREATE TABLE [dbo].[bucketitem] (
-	[id] [int] IDENTITY(1,1) NOT NULL,
-	[bucketID] [int] NOT NULL,
-	[transaction] datetime2(0) NOT NULL,
-	[name] nvarchar(100) NOT NULL,
-	[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
-	[withdrawl] decimal(10,2) NOT NULL DEFAULT 0.00
-   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED 
-  (
-	  [id] ASC
-  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-  ) ON [PRIMARY]
-  `
-
-const templateSchema string = `
-CREATE TABLE [dbo].[template] (
-	  [id] [int] IDENTITY(1,1) NOT NULL,
-	  [name] nvarchar(100) NOT NULL,
-	 CONSTRAINT [PK_template] PRIMARY KEY CLUSTERED 
-	(
-		[id] ASC
-	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-	) ON [PRIMARY]
-	`
-
-const templateItemSchema string = `
-  CREATE TABLE [dbo].[templateitem] (
-	  [id] [int] IDENTITY(1,1) NOT NULL,
-	  [templateID] int NOT NULL,
-	  [bucketID] int NOT NULL,
-	  [name] nvarchar(100) NOT NULL,
-	  [deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
-	  [withdraw] decimal(10,2) NOT NULL DEFAULT 0.00
-	 CONSTRAINT [PK_templateitem] PRIMARY KEY CLUSTERED 
-	(
-		[id] ASC
-	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-	) ON [PRIMARY]
-	`
-
-// go run db.go category.go bucket.go bucketItem.go errors.go template.go templateItem.go
-func dbInitMain() {
+func dbInit() {
 	// Attemping to establish a connection to the database.
 	sess, err := mssql.Open(settings)
 	if err != nil {
@@ -96,10 +30,6 @@ func dbInitMain() {
 	sess.Collection("bucket").Truncate()
 	sess.Collection("bucketitem").Truncate()
 
-	_, err = sess.Exec(categorySchema)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
 	categoryCollection := sess.Collection("category")
 	categoryCollection.Insert(Category{
 		Name: "house",
@@ -107,111 +37,163 @@ func dbInitMain() {
 	categoryCollection.Insert(Category{
 		Name: "living",
 	})
-	res := categoryCollection.Find()
-	// Query all results and fill the birthdays variable with them.
-	var categories []Category
 
-	err = res.All(&categories)
-	if err != nil {
-		log.Fatalf("res.All(): %q\n", err)
-	}
-
-	// Printing to stdout.
-	for _, category := range categories {
-		fmt.Printf("%s has ID:%d.\n",
-			category.Name,
-			category.Id,
-		)
-	}
-
-	_, err = sess.Exec(bucketSchema)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
 	bucketCollection := sess.Collection("bucket")
 	bucketCollection.Insert(Bucket{
 		Name:       "Gas",
-		CategoryID: categories[0].Id,
+		CategoryID: 1,
 		IsLiquid:   true,
 	})
 	bucketCollection.Insert(Bucket{
 		Name:       "Gabe's Personal",
-		CategoryID: categories[1].Id,
+		CategoryID: 1,
 		IsLiquid:   false,
 	})
-	res = bucketCollection.Find()
-	// Query all results and fill the birthdays variable with them.
-	var buckets []Bucket
 
-	err = res.All(&buckets)
-	if err != nil {
-		log.Fatalf("res.All(): %q\n", err)
-	}
-	// Printing to stdout.
-	for _, bucket := range buckets {
-		fmt.Printf("%s has ID:%d.\n",
-			bucket.Name,
-			bucket.Id,
-		)
-	}
-
-	_, err = sess.Exec(bucketItemSchema)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
-
-	_, err = sess.Exec(templateSchema)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
+	bucketItemCollection := sess.Collection("bucketitem")
+	bucketItemCollection.Insert(BucketItem{
+		Name:        "Initial Deposit",
+		BucketID:    1,
+		Deposit:     1.99,
+		Withdraw:    0.44,
+		Transaction: time.Now(),
+	})
+	bucketCollection.Insert(Bucket{
+		Name:       "Gabe's Personal",
+		CategoryID: 1,
+		IsLiquid:   false,
+	})
 
 	templateCollection := sess.Collection("template")
 	templateCollection.Insert(Template{
 		Name: "Bimonthly paycheck",
 	})
-	res = templateCollection.Find()
-	// Query all results and fill the birthdays variable with them.
-	var templates []Template
 
-	err = res.All(&templates)
-	if err != nil {
-		log.Fatalf("res.All(): %q\n", err)
-	}
-	// Printing to stdout.
-	for _, template := range templates {
-		fmt.Printf("%s has ID:%d.\n",
-			template.Name,
-			template.Id,
-		)
-	}
-
-	_, err = sess.Exec(templateItemSchema)
-	if err != nil {
-		fmt.Printf("Table already created %q\n", err)
-	}
 	templateItemCollection := sess.Collection("templateitem")
 	templateItemCollection.Insert(TemplateItem{
 		Name:       "Deposit",
-		BucketID:   buckets[0].Id,
-		TemplateID: templates[0].Id,
+		BucketID:   1,
+		TemplateID: 1,
 		Deposit:    2.99,
 		Withdraw:   1.45,
 	})
-	res = templateItemCollection.Find()
-	// Query all results and fill the birthdays variable with them.
-	var templateItems []TemplateItem
+}
 
-	err = res.All(&templateItems)
+func dbDropTables() error {
+	sess, err := mssql.Open(settings)
 	if err != nil {
-		log.Fatalf("res.All(): %q\n", err)
+		return err
 	}
-	// Printing to stdout.
-	for _, templateItem := range templateItems {
-		fmt.Printf("%s has ID:%d.\n",
-			templateItem.Name,
-			templateItem.ID,
-		)
+	defer sess.Close() // Remember to close the database session.
+
+	if _, err = sess.Exec("drop TABLE [dbo].[category];"); err != nil {
+		fmt.Printf("Err: %q\n", err)
 	}
+
+	if _, err = sess.Exec("drop TABLE [dbo].[bucket];"); err != nil {
+		fmt.Printf("Err: %q\n", err)
+	}
+
+	if _, err = sess.Exec("drop TABLE [dbo].[bucketitem];"); err != nil {
+		fmt.Printf("Err: %q\n", err)
+	}
+
+	if _, err = sess.Exec("drop TABLE [dbo].[template];"); err != nil {
+		fmt.Printf("Err: %q\n", err)
+	}
+
+	if _, err = sess.Exec("drop TABLE [dbo].[templateitem];"); err != nil {
+		fmt.Printf("Err: %q\n", err)
+	}
+
+	return err
+}
+
+func dbCreateTables() error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close() // Remember to close the database session.
+
+	_, err = sess.Exec(`
+		CREATE TABLE [dbo].[category] (
+			[id] [int] IDENTITY(1,1) NOT NULL,
+			[name] nvarchar(100) NOT NULL,
+			CONSTRAINT [PK_category] PRIMARY KEY CLUSTERED 
+			(
+				[id] ASC
+			)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+			) ON [PRIMARY]
+		`)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+	_, err = sess.Exec(`
+		CREATE TABLE [dbo].[bucket] (
+			[id] [int] IDENTITY(1,1) NOT NULL,
+			[categoryID] [int] NOT NULL,
+			[name] nvarchar(100) NOT NULL,
+			[description] nvarchar(1000) NOT NULL DEFAULT N'',
+			[isLiquid] bit NOT NULL DEFAULT 1
+		   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED 
+		  (
+			  [id] ASC
+		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+		  ) ON [PRIMARY]
+		`)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+	_, err = sess.Exec(`
+		CREATE TABLE [dbo].[bucketitem] (
+			[id] [int] IDENTITY(1,1) NOT NULL,
+			[bucketID] [int] NOT NULL,
+			[transaction] datetime2(0) NOT NULL,
+			[name] nvarchar(100) NOT NULL,
+			[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
+			[withdrawl] decimal(10,2) NOT NULL DEFAULT 0.00
+		   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED 
+		  (
+			  [id] ASC
+		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+		  ) ON [PRIMARY]
+		  `)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+	_, err = sess.Exec(`
+		CREATE TABLE [dbo].[template] (
+			  [id] [int] IDENTITY(1,1) NOT NULL,
+			  [name] nvarchar(100) NOT NULL,
+			 CONSTRAINT [PK_template] PRIMARY KEY CLUSTERED 
+			(
+				[id] ASC
+			)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+			) ON [PRIMARY]
+			`)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+	_, err = sess.Exec(`
+		CREATE TABLE [dbo].[templateitem] (
+			[id] [int] IDENTITY(1,1) NOT NULL,
+			[templateID] int NOT NULL,
+			[bucketID] int NOT NULL,
+			[name] nvarchar(100) NOT NULL,
+			[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
+			[withdraw] decimal(10,2) NOT NULL DEFAULT 0.00
+		   CONSTRAINT [PK_templateitem] PRIMARY KEY CLUSTERED 
+		  (
+			  [id] ASC
+		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+		  ) ON [PRIMARY]
+		  `)
+	if err != nil {
+		fmt.Printf("Table already created %q\n", err)
+	}
+
+	return err
 }
 
 func dbNewBucketItem(bucketItem *BucketItem) error {

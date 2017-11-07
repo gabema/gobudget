@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/render"
 )
 
-// go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go db.go
+// go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go db.go utils.go
 func main() {
 	r := chi.NewRouter()
 
@@ -78,5 +80,26 @@ func main() {
 		r.With(TemplateItemCtx).Get("/{articleSlug:[a-z-]+}", getTemplateItem)
 	})
 
-	http.ListenAndServe(":3000", r)
+	r.Route("/db", func(r chi.Router) {
+		r.Get("/create", func(w http.ResponseWriter, r *http.Request) {
+			if err := dbCreateTables(); err != nil {
+				render.Render(w, r, ErrInvalidRequest(err))
+				return
+			}
+			render.Status(r, http.StatusCreated)
+		})
+		r.Get("/drop", func(w http.ResponseWriter, r *http.Request) {
+			if err := dbDropTables(); err != nil {
+				render.Render(w, r, ErrInvalidRequest(err))
+				return
+			}
+			render.Status(r, http.StatusGone)
+		})
+		r.Get("/init", func(w http.ResponseWriter, r *http.Request) {
+			dbInit()
+			render.Status(r, http.StatusCreated)
+		})
+	})
+
+	http.ListenAndServe(fmt.Sprintf(":%s", readEnvOrDefault("HTTP_PLATFORM_PORT", "3000")), r)
 }
