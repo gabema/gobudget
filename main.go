@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/render"
 )
 
+const serverIP string = ""
+
 // go run main.go bucket.go bucketItem.go category.go errors.go template.go templateItem.go db.go utils.go
 func main() {
 	r := chi.NewRouter()
@@ -101,5 +103,5 @@ func main() {
 		})
 	})
 
-	http.ListenAndServe(fmt.Sprintf(":%s", readEnvOrDefault("HTTP_PLATFORM_PORT", "3000")), r)
+	http.ListenAndServe(fmt.Sprintf("%s:%s", serverIP, readEnvOrDefault("HTTP_PLATFORM_PORT", "3000")), r)
 }

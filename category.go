@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
@@ -58,17 +57,19 @@ func CategoryCtx(next http.Handler) http.Handler {
 // createCategory persists the posted Category and returns it
 // back to the client as an acknowledgement.
 func createCategory(w http.ResponseWriter, r *http.Request) {
-	data := &CategoryRequest{}
-	if err := render.Bind(r, data); err != nil {
+	data := CategoryRequest{}
+	if err := render.Bind(r, &data); err != nil {
 		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 
-	category := data.Category
-	dbNewCategory(category)
+	if err := dbNewCategory(data.Category); err != nil {
+		render.Render(w, r, ErrInvalidRequest(err))
+		return
+	}
 
 	render.Status(r, http.StatusCreated)
-	render.Render(w, r, newCategoryResponse(category))
+	render.Render(w, r, newCategoryResponse(data.Category))
 }
 
 // getCategory returns the specific Category. You'll notice it just
@@ -135,8 +136,8 @@ type CategoryRequest struct {
 
 func (a *CategoryRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = ""                                 // unset the protected ID
-	a.Category.Name = strings.ToLower(a.Category.Name) // as an example, we down-case
+	a.ProtectedID = "" // unset the protected ID
+	// a.Category.Name = strings.ToLower(a.Category.Name) // as an example, we down-case
 	return nil
 }
 

@@ -140,7 +140,9 @@ func dbCreateTables() error {
 		  (
 			  [id] ASC
 		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
+		  ) ON [PRIMARY],
+		  CONSTRAINT FK_bucket_category FOREIGN KEY (categoryID)     
+		  REFERENCES dbo.category ([id])
 		`)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
@@ -157,7 +159,9 @@ func dbCreateTables() error {
 		  (
 			  [id] ASC
 		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY]
+		  ) ON [PRIMARY],
+		  CONSTRAINT FK_bucketitem_bucket FOREIGN KEY (bucketID)     
+		  REFERENCES dbo.bucket ([id])
 		  `)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
@@ -204,11 +208,7 @@ func dbNewBucketItem(bucketItem *BucketItem) error {
 	defer sess.Close()
 
 	bucketItemCollection := sess.Collection("bucketitem")
-	bucketItemCollection.Insert(bucketItem)
-	res := bucketItemCollection.Find()
-	err = res.One(bucketItem)
-
-	return err
+	return bucketItemCollection.InsertReturning(bucketItem)
 }
 
 func dbGetBucketItems() ([]*BucketItem, error) {
@@ -281,11 +281,7 @@ func dbNewBucket(bucket *Bucket) error {
 	defer sess.Close()
 
 	bucketCollection := sess.Collection("bucket")
-	bucketCollection.Insert(bucket)
-	res := bucketCollection.Find()
-	err = res.One(bucket)
-
-	return err
+	return bucketCollection.InsertReturning(bucket)
 }
 
 func dbGetBuckets() ([]*Bucket, error) {
@@ -358,10 +354,7 @@ func dbNewCategory(category *Category) error {
 	defer sess.Close()
 
 	categoryCollection := sess.Collection("category")
-	categoryCollection.Insert(category)
-	res := categoryCollection.Find()
-	err = res.One(category)
-
+	err = categoryCollection.InsertReturning(category)
 	return err
 }
 
@@ -435,9 +428,7 @@ func dbNewTemplate(template *Template) error {
 	defer sess.Close()
 
 	templateCollection := sess.Collection("template")
-	templateCollection.Insert(template)
-	res := templateCollection.Find()
-	err = res.One(template)
+	err = templateCollection.InsertReturning(template)
 
 	return err
 }
@@ -512,11 +503,7 @@ func dbNewTemplateItem(templateItem *TemplateItem) error {
 	defer sess.Close()
 
 	templateItemCollection := sess.Collection("templateitem")
-	templateItemCollection.Insert(templateItem)
-	res := templateItemCollection.Find()
-	err = res.One(templateItem)
-
-	return err
+	return templateItemCollection.InsertReturning(templateItem)
 }
 
 func dbGetTemplateItems() ([]*TemplateItem, error) {
