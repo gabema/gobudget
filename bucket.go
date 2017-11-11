@@ -197,7 +197,8 @@ func (rd *BucketResponse) Render(w http.ResponseWriter, r *http.Request) error {
 func newBucketSummaryResponse(bucketSummaries []BucketSummary) []render.Renderer {
 	list := []render.Renderer{}
 	for _, bucketSummary := range bucketSummaries {
-		list = append(list, &bucketSummary)
+		bs := bucketSummary
+		list = append(list, &bs)
 	}
 	return list
 }
