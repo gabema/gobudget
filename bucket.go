@@ -21,6 +21,14 @@ type Bucket struct {
 	IsLiquid bool `db:"isLiquid"  json:"liq"`
 }
 
+type BucketSummary struct {
+	BucketID     int     `db:"bucketID" json:"bid"`
+	CategoryName string  `db:"categoryName" json:"cn"`
+	BucketName   string  `db:"bucketName" json:"bn"`
+	Total        float32 `db:"total" json:"t"`
+	IsLiquid     bool    `db:"isLiquid" json:"l"`
+}
+
 // listBuckets lists out all the Buckets
 func listBuckets(w http.ResponseWriter, r *http.Request) {
 	buckets, err := dbGetBuckets()
@@ -92,6 +100,14 @@ func getBucket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func summarizeBuckets(w http.ResponseWriter, r *http.Request) {
+	if bucketSummaries, err := dbSummarizeBuckets(); err == nil {
+		render.RenderList(w, r, newBucketSummaryResponse(bucketSummaries))
+	} else {
+		render.Render(w, r, ErrRender(err))
+	}
+}
+
 // updateBucket updates an existing Bucket in our persistent store.
 func updateBucket(w http.ResponseWriter, r *http.Request) {
 	bucket := r.Context().Value("bucket").(*Bucket)
@@ -147,7 +163,6 @@ type BucketRequest struct {
 func (a *BucketRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
 	a.ProtectedID = "" // unset the protected ID
-	// a.Bucket.Name = strings.ToLower(a.Bucket.Name) // as an example, we down-case
 	return nil
 }
 
@@ -159,9 +174,15 @@ func (a *BucketRequest) Bind(r *http.Request) error {
 // Render is called in top-down order, like a http handler middleware chain.
 type BucketResponse struct {
 	*Bucket
-	// We add an additional field to the response here.. such as this
-	// elapsed computed property
-	Elapsed int64 `json:"elapsed"`
+}
+
+type BucketSummaryResponse struct {
+	*BucketSummary
+}
+
+func (rd *BucketSummary) Render(w http.ResponseWriter, r *http.Request) error {
+	// Pre-processing before a response is marshalled and sent across the wire
+	return nil
 }
 
 func newBucketResponse(bucket *Bucket) *BucketResponse {
@@ -170,8 +191,15 @@ func newBucketResponse(bucket *Bucket) *BucketResponse {
 
 func (rd *BucketResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	// Pre-processing before a response is marshalled and sent across the wire
-	rd.Elapsed = 10
 	return nil
+}
+
+func newBucketSummaryResponse(bucketSummaries []BucketSummary) []render.Renderer {
+	list := []render.Renderer{}
+	for _, bucketSummary := range bucketSummaries {
+		list = append(list, &bucketSummary)
+	}
+	return list
 }
 
 func newBucketListResponse(buckets []*Bucket) []render.Renderer {

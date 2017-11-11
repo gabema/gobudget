@@ -32,7 +32,8 @@ func main() {
 
 	r.Route("/buckets", func(r chi.Router) {
 		r.Get("/", listBuckets)
-		r.Post("/", createBucket) // POST /buckets
+		r.Post("/", createBucket)
+		r.Get("/summary", summarizeBuckets)
 
 		r.Route("/{bucketID}", func(r chi.Router) {
 			r.Use(BucketCtx)            // Load the *Bucket on the request context

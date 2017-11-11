@@ -6,6 +6,7 @@ import (
 	"time"
 
 	db "upper.io/db.v3"
+	"upper.io/db.v3/lib/sqlbuilder"
 	"upper.io/db.v3/mssql"
 )
 
@@ -198,6 +199,30 @@ func dbCreateTables() error {
 	}
 
 	return err
+}
+
+func dbSummarizeBuckets() ([]BucketSummary, error) {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+
+	bucketSummaryRows, err := sess.Query(`
+SELECT bucket.id AS bucketID, category.id as categoryID, category.name AS categoryName, bucket.name AS bucketName, bucket.isLiquid, SUM(bucketitem.deposit) - SUM(bucketitem.withdrawl) AS total
+FROM bucket LEFT JOIN bucketItem ON bucketItem.bucketID = bucket.id
+INNER JOIN category ON bucket.categoryID = category.id
+GROUP BY bucket.id, category.id, category.name, bucket.name, bucket.isLiquid
+ORDER BY category.name, bucket.name;
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	var bs []BucketSummary
+	iter := sqlbuilder.NewIterator(bucketSummaryRows)
+	err = iter.All(&bs)
+	return bs, err
 }
 
 func dbNewBucketItem(bucketItem *BucketItem) error {
