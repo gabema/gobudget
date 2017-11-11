@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -13,7 +12,19 @@ import (
 
 // listBucketItems lists out all the BucketItems
 func listBucketItems(w http.ResponseWriter, r *http.Request) {
-	bucketItems, err := dbGetBucketItems()
+	qs := r.URL.Query()
+	bucketID, _ := strconv.Atoi(qs.Get("bid"))
+	dateStart := qs.Get("dstart")
+	dateEnd := qs.Get("dend")
+	inName := qs.Get("namePart")
+	var pageSize, pageStart int
+	var err error
+	if pageSize, err = strconv.Atoi(qs.Get("ps")); err != nil {
+		pageSize = 0
+	}
+	pageStart, _ = strconv.Atoi(qs.Get("po"))
+
+	bucketItems, err := dbGetBucketItems(bucketID, dateStart, dateEnd, inName, pageSize, pageStart)
 	if err != nil {
 		render.Render(w, r, ErrRender(err))
 		return
@@ -51,11 +62,11 @@ func BucketItemCtx(next http.Handler) http.Handler {
 	})
 }
 
-func searchBucketItems(w http.ResponseWriter, r *http.Request) {
-	var bucketItems []*BucketItem
-	bucketItems, _ = dbGetBucketItems()
-	render.RenderList(w, r, newBucketItemListResponse(bucketItems))
-}
+// func searchBucketItems(w http.ResponseWriter, r *http.Request) {
+// 	var bucketItems []*BucketItem
+// 	bucketItems, _ = dbGetBucketItems()
+// 	render.RenderList(w, r, newBucketItemListResponse(bucketItems))
+// }
 
 // createBucketItem persists the posted BucketItem and returns it
 // back to the client as an acknowledgement.
@@ -149,13 +160,13 @@ type BucketItem struct {
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type BucketItemRequest struct {
 	*BucketItem
-	ProtectedID int `json:"id"` // override 'id' json to have more control
+	// ProtectedID int `json:"id"` // override 'id' json to have more control
 }
 
 func (a *BucketItemRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = 0                                      // unset the protected ID
-	a.BucketItem.Name = strings.ToLower(a.BucketItem.Name) // as an example, we down-case
+	// a.ProtectedID = 0                                      // unset the protected ID
+	// a.BucketItem.Name = strings.ToLower(a.BucketItem.Name) // as an example, we down-case
 	return nil
 }
 
@@ -169,7 +180,7 @@ type BucketItemResponse struct {
 	*BucketItem
 	// We add an additional field to the response here.. such as this
 	// elapsed computed property
-	Elapsed int64 `json:"elapsed"`
+	// Elapsed int64 `json:"elapsed"`
 }
 
 func newBucketItemResponse(bucketItem *BucketItem) *BucketItemResponse {
@@ -178,7 +189,7 @@ func newBucketItemResponse(bucketItem *BucketItem) *BucketItemResponse {
 
 func (rd *BucketItemResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	// Pre-processing before a response is marshalled and sent across the wire
-	rd.Elapsed = 10
+	// rd.Elapsed = 10
 	return nil
 }
 

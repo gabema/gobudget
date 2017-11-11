@@ -16,8 +16,7 @@ func main() {
 
 	r.Route("/bucketItems", func(r chi.Router) {
 		r.Get("/", listBucketItems)
-		r.Post("/", createBucketItem)       // POST /bucketItems
-		r.Get("/search", searchBucketItems) // GET /bucketItems/search
+		r.Post("/", createBucketItem) // POST /bucketItems
 
 		r.Route("/{bucketItemID}", func(r chi.Router) {
 			r.Use(BucketItemCtx)            // Load the *BucketItem on the request context

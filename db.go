@@ -10,6 +10,14 @@ import (
 	"upper.io/db.v3/mssql"
 )
 
+type dbError struct {
+	s string
+}
+
+func (e *dbError) Error() string {
+	return e.s
+}
+
 var settings = mssql.ConnectionURL{
 	Host:     readEnvOrDefault("DB_HOST_NAME", "127.0.0.1"), // MSSQL server IP or name.
 	Database: readEnvOrDefault("DB_NAME", "budget2"),        // Database name.
@@ -236,7 +244,23 @@ func dbNewBucketItem(bucketItem *BucketItem) error {
 	return bucketItemCollection.InsertReturning(bucketItem)
 }
 
-func dbGetBucketItems() ([]*BucketItem, error) {
+func parseStartDate(dateStr string) (time.Time, error) {
+	if dateStr == "" {
+		return time.Time{}, &dbError{"no date specified"}
+	}
+	timeVal, err := time.Parse("01/02/2006", dateStr)
+	return timeVal, err
+}
+
+func parseEndDate(dateStr string) (time.Time, error) {
+	timeVal, err := parseStartDate(dateStr)
+	if err == nil {
+		timeVal = timeVal.Add(time.Duration(24*time.Hour - 1*time.Second))
+	}
+	return timeVal, err
+}
+
+func dbGetBucketItems(bucketID int, dateStart string, dateEnd string, inName string, pageSize int, pageStart int) ([]*BucketItem, error) {
 	sess, err := mssql.Open(settings)
 	if err != nil {
 		return nil, err
@@ -244,9 +268,30 @@ func dbGetBucketItems() ([]*BucketItem, error) {
 	defer sess.Close()
 
 	var bucketItems []*BucketItem
-	bucketItemCollection := sess.Collection("bucketitem")
-	res := bucketItemCollection.Find()
-	err = res.All(&bucketItems)
+	bucketItemSelector := sess.SelectFrom("bucketitem")
+	if bucketID != 0 {
+		bucketItemSelector = bucketItemSelector.Where("bucketID = ?", bucketID)
+	}
+	if date, err := parseStartDate(dateStart); err == nil {
+		bucketItemSelector = bucketItemSelector.Where("[transaction] >= ?", date.Format("2006-01-02 15:04:05"))
+	}
+
+	if date, err := parseEndDate(dateEnd); err == nil {
+		bucketItemSelector = bucketItemSelector.Where("[transaction] < ?", date.Format("2006-01-02 15:04:05"))
+	}
+
+	if inName != "" {
+		bucketItemSelector = bucketItemSelector.Where("name like ?", "%"+inName+"%")
+	}
+	bucketItemSelector = bucketItemSelector.OrderBy("-transaction")
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	if pageStart < 0 {
+		pageStart = 0
+	}
+	query := bucketItemSelector.Paginate(uint(pageSize)).Page(uint(pageStart))
+	err = query.All(&bucketItems)
 
 	return bucketItems, err
 }

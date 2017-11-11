@@ -157,12 +157,12 @@ func deleteBucket(w http.ResponseWriter, r *http.Request) {
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type BucketRequest struct {
 	*Bucket
-	ProtectedID string `json:"id"` // override 'id' json to have more control
+	// ProtectedID string `json:"id"` // override 'id' json to have more control
 }
 
 func (a *BucketRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	a.ProtectedID = "" // unset the protected ID
+	// a.ProtectedID = "" // unset the protected ID
 	return nil
 }
 
