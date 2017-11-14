@@ -62,29 +62,38 @@ func BucketItemCtx(next http.Handler) http.Handler {
 	})
 }
 
-// func searchBucketItems(w http.ResponseWriter, r *http.Request) {
-// 	var bucketItems []*BucketItem
-// 	bucketItems, _ = dbGetBucketItems()
-// 	render.RenderList(w, r, newBucketItemListResponse(bucketItems))
-// }
-
 // createBucketItem persists the posted BucketItem and returns it
 // back to the client as an acknowledgement.
 func createBucketItem(w http.ResponseWriter, r *http.Request) {
-	data := &BucketItemRequest{}
-	if err := render.Bind(r, data); err != nil {
-		render.Render(w, r, ErrInvalidRequest(err))
-		return
-	}
+	if r.URL.Query().Get("batch") == "" {
+		data := &BucketItemRequest{}
+		if err := render.Bind(r, data); err != nil {
+			render.Render(w, r, ErrInvalidRequest(err))
+			return
+		}
 
-	bucketItem := data.BucketItem
-	if err := dbNewBucketItem(bucketItem); err != nil {
-		render.Render(w, r, ErrInvalidRequest(err))
-		return
-	}
+		bucketItem := data.BucketItem
+		if err := dbNewBucketItem(bucketItem); err != nil {
+			render.Render(w, r, ErrInvalidRequest(err))
+			return
+		}
+		render.Status(r, http.StatusCreated)
+		render.Render(w, r, newBucketItemResponse(bucketItem))
+	} else {
+		data := &BucketItemsRequest{}
+		if err := render.Bind(r, data); err != nil {
+			render.Render(w, r, ErrInvalidRequest(err))
+			return
+		}
 
-	render.Status(r, http.StatusCreated)
-	render.Render(w, r, newBucketItemResponse(bucketItem))
+		bucketItems := data.Items
+		if err := dbNewBucketItems(bucketItems); err != nil {
+			render.Render(w, r, ErrInvalidRequest(err))
+			return
+		}
+		render.Status(r, http.StatusCreated)
+		render.Render(w, r, &BucketItemsResponse{count: len(bucketItems)})
+	}
 }
 
 // getBucketItem returns the specific BucketItem. You'll notice it just
@@ -160,13 +169,27 @@ type BucketItem struct {
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type BucketItemRequest struct {
 	*BucketItem
-	// ProtectedID int `json:"id"` // override 'id' json to have more control
 }
 
 func (a *BucketItemRequest) Bind(r *http.Request) error {
 	// just a post-process after a decode..
-	// a.ProtectedID = 0                                      // unset the protected ID
-	// a.BucketItem.Name = strings.ToLower(a.BucketItem.Name) // as an example, we down-case
+	return nil
+}
+
+type BucketItemsRequest struct {
+	Items []BucketItem `json:"items"`
+}
+
+func (a *BucketItemsRequest) Bind(r *http.Request) error {
+	return nil
+}
+
+type BucketItemsResponse struct {
+	count int
+}
+
+func (rd *BucketItemsResponse) Render(w http.ResponseWriter, r *http.Request) error {
+	// Pre-processing before a response is marshalled and sent across the wire
 	return nil
 }
 
@@ -179,8 +202,6 @@ func (a *BucketItemRequest) Bind(r *http.Request) error {
 type BucketItemResponse struct {
 	*BucketItem
 	// We add an additional field to the response here.. such as this
-	// elapsed computed property
-	// Elapsed int64 `json:"elapsed"`
 }
 
 func newBucketItemResponse(bucketItem *BucketItem) *BucketItemResponse {
@@ -189,7 +210,6 @@ func newBucketItemResponse(bucketItem *BucketItem) *BucketItemResponse {
 
 func (rd *BucketItemResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	// Pre-processing before a response is marshalled and sent across the wire
-	// rd.Elapsed = 10
 	return nil
 }
 

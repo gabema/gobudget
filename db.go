@@ -145,13 +145,10 @@ func dbCreateTables() error {
 			[name] nvarchar(100) NOT NULL,
 			[description] nvarchar(1000) NOT NULL DEFAULT N'',
 			[isLiquid] bit NOT NULL DEFAULT 1
-		   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY],
-		  CONSTRAINT FK_bucket_category FOREIGN KEY (categoryID)     
-		  REFERENCES dbo.category ([id])
+		   CONSTRAINT [PK_bucket] PRIMARY KEY CLUSTERED ([id] ASC)
+			  WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+		   CONSTRAINT FK_bucket_category FOREIGN KEY (categoryID) REFERENCES dbo.category ([id])
+		  ) ON [PRIMARY]
 		`)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
@@ -164,13 +161,10 @@ func dbCreateTables() error {
 			[name] nvarchar(100) NOT NULL,
 			[deposit] decimal(10,2) NOT NULL DEFAULT 0.00,
 			[withdrawl] decimal(10,2) NOT NULL DEFAULT 0.00
-		   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED 
-		  (
-			  [id] ASC
-		  )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-		  ) ON [PRIMARY],
-		  CONSTRAINT FK_bucketitem_bucket FOREIGN KEY (bucketID)     
-		  REFERENCES dbo.bucket ([id])
+		   CONSTRAINT [PK_bucketitem] PRIMARY KEY CLUSTERED ([id] ASC)
+			WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+		   CONSTRAINT FK_bucketitem_bucket FOREIGN KEY (bucketID) REFERENCES dbo.bucket ([id])
+		  ) ON [PRIMARY]
 		  `)
 	if err != nil {
 		fmt.Printf("Table already created %q\n", err)
@@ -242,6 +236,23 @@ func dbNewBucketItem(bucketItem *BucketItem) error {
 
 	bucketItemCollection := sess.Collection("bucketitem")
 	return bucketItemCollection.InsertReturning(bucketItem)
+}
+
+func dbNewBucketItems(bucketItems []BucketItem) error {
+	sess, err := mssql.Open(settings)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	bucketItemsCollection := sess.Collection("bucketitem")
+	for _, bucketItem := range bucketItems {
+		fmt.Println("Enter bucketitem ", bucketItem)
+		if _, err := bucketItemsCollection.Insert(bucketItem); err != nil {
+			return err
+		}
+	}
+	return err
 }
 
 func parseStartDate(dateStr string) (time.Time, error) {
